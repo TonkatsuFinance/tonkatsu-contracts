@@ -8,15 +8,16 @@ import "./libs/SafeBEP20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
-import "./EggToken.sol";
+import "./KatsuToken.sol";
 
-// MasterChef is the master of Egg. He can make Egg and he is a fair guy.
+// MasterChef is the master of Katsu. He can make Katsu and he is a fair guy.
 //
 // Note that it's ownable and the owner wields tremendous power. The ownership
-// will be transferred to a governance smart contract once EGG is sufficiently
+// will be transferred to a governance smart contract once KATSU is sufficiently
 // distributed and the community can show to govern itself.
 //
 // Have fun reading it. Hopefully it's bug-free. God bless.
+// Forked From goose-contracts
 contract MasterChefV2 is Ownable, ReentrancyGuard {
     using SafeMath for uint256;
     using SafeBEP20 for IBEP20;
@@ -26,13 +27,13 @@ contract MasterChefV2 is Ownable, ReentrancyGuard {
         uint256 amount;         // How many LP tokens the user has provided.
         uint256 rewardDebt;     // Reward debt. See explanation below.
         //
-        // We do some fancy math here. Basically, any point in time, the amount of EGGs
+        // We do some fancy math here. Basically, any point in time, the amount of KATSUs
         // entitled to a user but is pending to be distributed is:
         //
-        //   pending reward = (user.amount * pool.accEggPerShare) - user.rewardDebt
+        //   pending reward = (user.amount * pool.accKatsuPerShare) - user.rewardDebt
         //
         // Whenever a user deposits or withdraws LP tokens to a pool. Here's what happens:
-        //   1. The pool's `accEggPerShare` (and `lastRewardBlock`) gets updated.
+        //   1. The pool's `accKatsuPerShare` (and `lastRewardBlock`) gets updated.
         //   2. User receives the pending reward sent to his/her address.
         //   3. User's `amount` gets updated.
         //   4. User's `rewardDebt` gets updated.
@@ -41,19 +42,19 @@ contract MasterChefV2 is Ownable, ReentrancyGuard {
     // Info of each pool.
     struct PoolInfo {
         IBEP20 lpToken;           // Address of LP token contract.
-        uint256 allocPoint;       // How many allocation points assigned to this pool. EGGs to distribute per block.
-        uint256 lastRewardBlock;  // Last block number that EGGs distribution occurs.
-        uint256 accEggPerShare;   // Accumulated EGGs per share, times 1e12. See below.
+        uint256 allocPoint;       // How many allocation points assigned to this pool. KATSUs to distribute per block.
+        uint256 lastRewardBlock;  // Last block number that KATSUs distribution occurs.
+        uint256 accKatsuPerShare;   // Accumulated KATSUs per share, times 1e12. See below.
         uint16 depositFeeBP;      // Deposit fee in basis points
     }
 
-    // The EGG TOKEN!
-    EggToken public egg;
+    // The KATSU TOKEN!
+    KatsuToken public katsu;
     // Dev address.
     address public devaddr;
-    // EGG tokens created per block.
-    uint256 public eggPerBlock;
-    // Bonus muliplier for early egg makers.
+    // KATSU tokens created per block.
+    uint256 public katsuPerBlock;
+    // Bonus muliplier for early katsu makers.
     uint256 public constant BONUS_MULTIPLIER = 1;
     // Deposit Fee address
     address public feeAddress;
@@ -64,7 +65,7 @@ contract MasterChefV2 is Ownable, ReentrancyGuard {
     mapping(uint256 => mapping(address => UserInfo)) public userInfo;
     // Total allocation points. Must be the sum of all allocation points in all pools.
     uint256 public totalAllocPoint = 0;
-    // The block number when EGG mining starts.
+    // The block number when KATSU mining starts.
     uint256 public startBlock;
 
     event Deposit(address indexed user, uint256 indexed pid, uint256 amount);
@@ -75,16 +76,16 @@ contract MasterChefV2 is Ownable, ReentrancyGuard {
     event UpdateEmissionRate(address indexed user, uint256 goosePerBlock);
 
     constructor(
-        EggToken _egg,
+        KatsuToken _katsu,
         address _devaddr,
         address _feeAddress,
-        uint256 _eggPerBlock,
+        uint256 _katsuPerBlock,
         uint256 _startBlock
     ) public {
-        egg = _egg;
+        katsu = _katsu;
         devaddr = _devaddr;
         feeAddress = _feeAddress;
-        eggPerBlock = _eggPerBlock;
+        katsuPerBlock = _katsuPerBlock;
         startBlock = _startBlock;
     }
 
@@ -111,12 +112,12 @@ contract MasterChefV2 is Ownable, ReentrancyGuard {
         lpToken : _lpToken,
         allocPoint : _allocPoint,
         lastRewardBlock : lastRewardBlock,
-        accEggPerShare : 0,
+        accKatsuPerShare : 0,
         depositFeeBP : _depositFeeBP
         }));
     }
 
-    // Update the given pool's EGG allocation point and deposit fee. Can only be called by the owner.
+    // Update the given pool's KATSU allocation point and deposit fee. Can only be called by the owner.
     function set(uint256 _pid, uint256 _allocPoint, uint16 _depositFeeBP, bool _withUpdate) public onlyOwner {
         require(_depositFeeBP <= 10000, "set: invalid deposit fee basis points");
         if (_withUpdate) {
@@ -132,18 +133,18 @@ contract MasterChefV2 is Ownable, ReentrancyGuard {
         return _to.sub(_from).mul(BONUS_MULTIPLIER);
     }
 
-    // View function to see pending EGGs on frontend.
-    function pendingEgg(uint256 _pid, address _user) external view returns (uint256) {
+    // View function to see pending KATSUs on frontend.
+    function pendingKatsu(uint256 _pid, address _user) external view returns (uint256) {
         PoolInfo storage pool = poolInfo[_pid];
         UserInfo storage user = userInfo[_pid][_user];
-        uint256 accEggPerShare = pool.accEggPerShare;
+        uint256 accKatsuPerShare = pool.accKatsuPerShare;
         uint256 lpSupply = pool.lpToken.balanceOf(address(this));
         if (block.number > pool.lastRewardBlock && lpSupply != 0) {
             uint256 multiplier = getMultiplier(pool.lastRewardBlock, block.number);
-            uint256 eggReward = multiplier.mul(eggPerBlock).mul(pool.allocPoint).div(totalAllocPoint);
-            accEggPerShare = accEggPerShare.add(eggReward.mul(1e12).div(lpSupply));
+            uint256 katsuReward = multiplier.mul(katsuPerBlock).mul(pool.allocPoint).div(totalAllocPoint);
+            accKatsuPerShare = accKatsuPerShare.add(katsuReward.mul(1e12).div(lpSupply));
         }
-        return user.amount.mul(accEggPerShare).div(1e12).sub(user.rewardDebt);
+        return user.amount.mul(accKatsuPerShare).div(1e12).sub(user.rewardDebt);
     }
 
     // Update reward variables for all pools. Be careful of gas spending!
@@ -166,22 +167,22 @@ contract MasterChefV2 is Ownable, ReentrancyGuard {
             return;
         }
         uint256 multiplier = getMultiplier(pool.lastRewardBlock, block.number);
-        uint256 eggReward = multiplier.mul(eggPerBlock).mul(pool.allocPoint).div(totalAllocPoint);
-        egg.mint(devaddr, eggReward.div(10));
-        egg.mint(address(this), eggReward);
-        pool.accEggPerShare = pool.accEggPerShare.add(eggReward.mul(1e12).div(lpSupply));
+        uint256 katsuReward = multiplier.mul(katsuPerBlock).mul(pool.allocPoint).div(totalAllocPoint);
+        katsu.mint(devaddr, katsuReward.div(10));
+        katsu.mint(address(this), katsuReward);
+        pool.accKatsuPerShare = pool.accKatsuPerShare.add(katsuReward.mul(1e12).div(lpSupply));
         pool.lastRewardBlock = block.number;
     }
 
-    // Deposit LP tokens to MasterChef for EGG allocation.
+    // Deposit LP tokens to MasterChef for KATSU allocation.
     function deposit(uint256 _pid, uint256 _amount) public nonReentrant {
         PoolInfo storage pool = poolInfo[_pid];
         UserInfo storage user = userInfo[_pid][msg.sender];
         updatePool(_pid);
         if (user.amount > 0) {
-            uint256 pending = user.amount.mul(pool.accEggPerShare).div(1e12).sub(user.rewardDebt);
+            uint256 pending = user.amount.mul(pool.accKatsuPerShare).div(1e12).sub(user.rewardDebt);
             if (pending > 0) {
-                safeEggTransfer(msg.sender, pending);
+                safeKatsuTransfer(msg.sender, pending);
             }
         }
         if (_amount > 0) {
@@ -194,7 +195,7 @@ contract MasterChefV2 is Ownable, ReentrancyGuard {
                 user.amount = user.amount.add(_amount);
             }
         }
-        user.rewardDebt = user.amount.mul(pool.accEggPerShare).div(1e12);
+        user.rewardDebt = user.amount.mul(pool.accKatsuPerShare).div(1e12);
         emit Deposit(msg.sender, _pid, _amount);
     }
 
@@ -204,15 +205,15 @@ contract MasterChefV2 is Ownable, ReentrancyGuard {
         UserInfo storage user = userInfo[_pid][msg.sender];
         require(user.amount >= _amount, "withdraw: not good");
         updatePool(_pid);
-        uint256 pending = user.amount.mul(pool.accEggPerShare).div(1e12).sub(user.rewardDebt);
+        uint256 pending = user.amount.mul(pool.accKatsuPerShare).div(1e12).sub(user.rewardDebt);
         if (pending > 0) {
-            safeEggTransfer(msg.sender, pending);
+            safeKatsuTransfer(msg.sender, pending);
         }
         if (_amount > 0) {
             user.amount = user.amount.sub(_amount);
             pool.lpToken.safeTransfer(address(msg.sender), _amount);
         }
-        user.rewardDebt = user.amount.mul(pool.accEggPerShare).div(1e12);
+        user.rewardDebt = user.amount.mul(pool.accKatsuPerShare).div(1e12);
         emit Withdraw(msg.sender, _pid, _amount);
     }
 
@@ -227,16 +228,16 @@ contract MasterChefV2 is Ownable, ReentrancyGuard {
         emit EmergencyWithdraw(msg.sender, _pid, amount);
     }
 
-    // Safe egg transfer function, just in case if rounding error causes pool to not have enough EGGs.
-    function safeEggTransfer(address _to, uint256 _amount) internal {
-        uint256 eggBal = egg.balanceOf(address(this));
+    // Safe katsu transfer function, just in case if rounding error causes pool to not have enough KATSUs.
+    function safeKatsuTransfer(address _to, uint256 _amount) internal {
+        uint256 katsuBal = katsu.balanceOf(address(this));
         bool transferSuccess = false;
-        if (_amount > eggBal) {
-            transferSuccess = egg.transfer(_to, eggBal);
+        if (_amount > katsuBal) {
+            transferSuccess = katsu.transfer(_to, katsuBal);
         } else {
-            transferSuccess = egg.transfer(_to, _amount);
+            transferSuccess = katsu.transfer(_to, _amount);
         }
-        require(transferSuccess, "safeEggTransfer: transfer failed");
+        require(transferSuccess, "safeKatsuTransfer: transfer failed");
     }
 
     // Update dev address by the previous dev.
@@ -253,9 +254,9 @@ contract MasterChefV2 is Ownable, ReentrancyGuard {
     }
 
     //Pancake has to add hidden dummy pools inorder to alter the emission, here we make it simple and transparent to all.
-    function updateEmissionRate(uint256 _eggPerBlock) public onlyOwner {
+    function updateEmissionRate(uint256 _katsuPerBlock) public onlyOwner {
         massUpdatePools();
-        eggPerBlock = _eggPerBlock;
-        emit UpdateEmissionRate(msg.sender, _eggPerBlock);
+        katsuPerBlock = _katsuPerBlock;
+        emit UpdateEmissionRate(msg.sender, _katsuPerBlock);
     }
 }
